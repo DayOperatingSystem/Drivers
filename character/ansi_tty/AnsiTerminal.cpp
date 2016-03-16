@@ -18,25 +18,9 @@ bool AnsiTerminal::initialize()
 	return true;
 }
 
-
-/*void AnsiTerminal::read(pid_t receiver, size_t size)
-{
-	write_message_stream(&m_buffer[0], std::min(size, m_buffer.size()), receiver);
-	
-	// Tell the client that the stream is over regardless of its expectations
-	// regarding size
-	message_t msg;
-	msg.signal = SIGNAL_FAIL;
-	send_message(&msg, receiver);
-}*/
-
 size_t AnsiTerminal::write(void* what, size_t size)
 {
-	char* str = (char*) what;
-	// what is not nul terminated!
-	for(size_t i = 0; i < size; i++)
-		m_framebuffer.putch(*str++);
-	
+	m_framebuffer.puts((const char*) what, size);	
 	return size;
 }
 

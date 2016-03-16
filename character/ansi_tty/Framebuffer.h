@@ -117,6 +117,19 @@ public:
 	Framebuffer& operator << (int z);
 	Framebuffer& operator << (uint32_t z);
 	Framebuffer& operator << (Color f);
+	
+	void puts(const char* str, size_t n)
+	{
+		const char* start = str;
+		for(size_t i = 0; i < n; i++)
+		{
+			str = parseEscape(str);
+			
+			// Make sure that i is in sync with str.
+			i = str - start;
+			putch(*str++);
+		}
+	}
 
 };
 
