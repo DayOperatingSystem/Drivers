@@ -38,6 +38,9 @@ void VesaFramebuffer::buildModeList()
 		// Check if this is a packed pixel or direct color mode
 		if (inf->memory_model != 4 && inf->memory_model != 6) continue;
 
+		// Only allow 32bit modes
+		if (inf->bpp != 32) continue;
+		
 		//debug_printf("Found mode: %x %dx%dx%d\n", modes[i], inf->width, inf->height, inf->bpp);
 		m_modes.push_back(VesaMode(modes[i], *inf));
 	}
