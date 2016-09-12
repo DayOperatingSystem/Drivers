@@ -2,6 +2,8 @@
 #include <sstream>
 #include <HIDDevice.h>
 
+#include <signal.h>
+
 bool AnsiTerminal::initialize()
 {
 	std::stringstream path;
@@ -56,7 +58,27 @@ bool AnsiTerminal::handle(message_t& msg)
 				if(modifiers[1])
 					event->data += 0x200;
 				if(modifiers[2])
-					return true; //event->data += 0x100;
+				{
+					int character = m_keymap[event->data];
+
+					// Generate signals!
+					if(hasNextRequest())
+					{
+						switch(character)
+						{
+						case 'c':
+							kill(getNextRequestPID(), SIGINT);
+							m_framebuffer.puts("^C", 2);
+							break;
+							
+						case 'd':
+							m_framebuffer.putch(-1);
+							m_framebuffer.puts("^D", 2);
+							break;
+						}
+					}
+					return true;
+				}
 				
 				int character = m_keymap[event->data];
 				if(character == '\b' && getBufferSize() > 0)
