@@ -26,7 +26,6 @@ int main(int argc, char* argv[])
 	}
 
 	debug_printf("[ RAMFS ] Mounted at '%s'\n", mountpoint);
-
 	while(true)
 	{
 		while(receive_message(&msg, MESSAGE_ANY) != MESSAGE_RECEIVED) sleep(10);

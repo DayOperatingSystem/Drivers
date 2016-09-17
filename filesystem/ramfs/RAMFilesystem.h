@@ -4,80 +4,52 @@
 #include <FileSystem.h>
 #include <map>
 #include <vector>
+#include <string>
 #include <sys/stat.h>
 #include <memory>
-#include "BinaryTree.h"
 
-enum NODE_TYPE
+struct Node
 {
-	GENERAL_NODE = 0,
-	FILE_NODE,
-	DIRECTORY_NODE
-};
-
-class FSNode
-{
-public:
-	FSNode* parent;
-	unsigned int id;
 	std::string name;
-	struct stat info;
-
-	virtual NODE_TYPE getType() = 0;
-};
-
-class File : public FSNode
-{
-public:
-	~File() { delete content; }
-	char* content = NULL;
-	size_t size = 0;
+	DEVICE_TYPES type;
+	file_handle_t id;
+	
 	uid_t uid = 0;
 	gid_t gid = 0;
-
-	virtual NODE_TYPE getType() { return FILE_NODE; }
-
-	void alloc(size_t sz, size_t offset);
-	void write(void* data, size_t sz, size_t offset);
-	size_t read(void* data, size_t sz, size_t offset);
 };
 
-class Directory : public FSNode
+struct File : public Node
 {
-private:
-	std::vector<std::shared_ptr<FSNode>> m_children;
-public:
+	File() { type = VFS_REGULAR; content = NULL; size = 0; }
+	char* content;
+	size_t size;
+};
 
-	virtual NODE_TYPE getType() { return DIRECTORY_NODE; }
-
-	void addChild(std::shared_ptr<FSNode> node) { m_children.push_back(node); }
-	std::shared_ptr<FSNode> getChild(size_t idx) { return m_children[idx]; }
-	size_t getNumChildren() { return m_children.size(); }
+struct Directory : public Node
+{	
+	Directory() { type = VFS_DIRECTORY; }
+	std::vector<std::map<std::string, Node*>::iterator> children;
 };
 
 class RAMFilesystem : public IO::FileSystem
 {
-	std::map<std::string, std::shared_ptr<FSNode>> m_nodes;
-	BinaryTree<std::shared_ptr<FSNode>> m_files;
-	long unsigned int m_id;
-
-	std::shared_ptr<FSNode> m_root;
-
+	std::map<std::string, Node*> files;
+	std::map<file_handle_t, Node*> handleFiles;
+	
+	file_handle_t currentId;
+	
 public:
 	RAMFilesystem() : IO::FileSystem()
-	, m_id(1)
-	{
-		m_nodes["/"] = *m_files.insert(m_root = std::shared_ptr<FSNode>(new Directory), 0);
-	}
+	{ currentId = 0; }
 
-	bool initialize();
+	bool initialize() { currentId = 0; }
 	bool handle(message_t& msg);
 	const char* getName() { return "RAMFS"; }
 
 	virtual file_handle_t open(const char* path, VFS_OPEN_MODES mode);
 	virtual void close(file_handle_t handle);
 
-	virtual size_t read(file_handle_t, void* data, size_t offset, size_t size);
+	virtual size_t read(file_handle_t, pid_t receiver, size_t offset, size_t size);
 	virtual size_t write(file_handle_t file, void* data, size_t offset, size_t size);
 	virtual bool remove(file_handle_t file);
 	virtual bool move(file_handle_t dir, const char* path);
@@ -86,7 +58,7 @@ public:
 	virtual file_handle_t opendir(const char* path);
 	virtual file_handle_t readdir(file_handle_t dir, size_t idx);
 	virtual bool removeDirectory(file_handle_t file);
-	virtual file_handle_t createDirectory(const char* path);
+	virtual file_handle_t createDirectory(const char* path, VFS_OPEN_MODES mode);
 
 	virtual void changeOwner(file_handle_t node, uid_t user);
 	virtual void changeMode(file_handle_t node, mode_t mode);	
