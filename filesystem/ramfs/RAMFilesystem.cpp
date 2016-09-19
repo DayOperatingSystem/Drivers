@@ -27,6 +27,9 @@ file_handle_t RAMFilesystem::open(const char* path, VFS_OPEN_MODES mode)
 		files[path] = file;
 		handleFiles[currentId] = file;
 		
+		if(!addToParent(path, file))
+			debug_printf("FIXME: Could not add file to parent!\n");
+		
 		return currentId;
 	}
 	else if(fileIter == files.end())
@@ -96,14 +99,44 @@ bool RAMFilesystem::move(file_handle_t dir, const char* path)
 	DSTUB;
 }
 
-file_handle_t RAMFilesystem::opendir(const char* path)
+file_handle_t RAMFilesystem::opendir(const char* path, ino_t* id, ino_t* nid)
 {
-	DSTUB;
+	auto iter = files.find(path);
+	if(iter == files.end())
+		return 0;
+	
+	auto dir = static_cast<Directory*>(iter->second);
+	if(dir->children.size() == 0)
+		return -1;
+	
+	*nid = dir->children.begin()->second->id;
+	*id = dir->id;
+	
+	return *nid;
 }
 
-file_handle_t RAMFilesystem::readdir(file_handle_t dir, size_t idx)
+file_handle_t RAMFilesystem::readdir(file_handle_t dir, size_t idx, struct vfs_file* dest)
 {
-	DSTUB;
+	if(idx == -1)
+		return 0;
+	
+	auto directory = (Directory*) handleFiles[dir];
+	if(directory == nullptr)
+		return 0;
+
+	auto child = directory->children.find(idx);
+	if(child == directory->children.end())
+		return 0;
+	
+	strncpy(dest->path, child->second->name.c_str(), sizeof(dest->path));
+	child++;
+	
+	if(child != directory->children.end())
+	{
+		dest->child_nid = child->second->id;
+	}
+	
+	return dest->nid;
 }
 
 bool RAMFilesystem::removeDirectory(file_handle_t file)
@@ -123,9 +156,12 @@ file_handle_t RAMFilesystem::createDirectory(const char* path, VFS_OPEN_MODES mo
 		
 		dir->name = strPath.substr(strPath.find_last_of('/') + 1);
 		dir->id = currentId;
-		
+
 		files[path] = dir;
 		handleFiles[currentId] = dir;
+		
+		if(strcmp(path, "/") && !addToParent(path, dir))
+			debug_printf("FIXME: Could not add directory to parent!\n");
 		
 		return currentId;
 	}
@@ -157,5 +193,30 @@ bool RAMFilesystem::fstat(file_handle_t handle, struct stat* st)
 	st->st_gid = file->gid;
 	st->st_ino = handle;
 
+	return true;
+}
+
+
+bool RAMFilesystem::addToParent(const char* fullpath, Node* node)
+{
+	std::string strpath = fullpath;
+	int idx = strpath.find_last_of("/");
+	if(idx == -1)
+		return false;
+	
+	if(idx == 0)
+	{
+		static_cast<Directory*>(files["/"])->children[node->id] = node;
+		return true;
+	}
+	
+	strpath.erase(idx);
+	auto iter = files.find(strpath);
+	if(iter == files.end())
+	{
+		return false;
+	}
+	
+	((Directory*) iter->second)->children[node->id] = node;
 	return true;
 }

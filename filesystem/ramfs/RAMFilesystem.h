@@ -28,7 +28,7 @@ struct File : public Node
 struct Directory : public Node
 {	
 	Directory() { type = VFS_DIRECTORY; }
-	std::vector<std::map<std::string, Node*>::iterator> children;
+	std::map<file_handle_t, Node*> children;
 };
 
 class RAMFilesystem : public IO::FileSystem
@@ -38,9 +38,10 @@ class RAMFilesystem : public IO::FileSystem
 	
 	file_handle_t currentId;
 	
+	bool addToParent(const char* fullpath, Node* node);
 public:
 	RAMFilesystem() : IO::FileSystem()
-	{ currentId = 0; }
+	{ currentId = 0; createDirectory("/", VFS_MODE_RW); }
 
 	bool initialize() { currentId = 0; }
 	bool handle(message_t& msg);
@@ -55,8 +56,8 @@ public:
 	virtual bool move(file_handle_t dir, const char* path);
 	virtual bool fstat(file_handle_t handle, struct stat* st);
 
-	virtual file_handle_t opendir(const char* path);
-	virtual file_handle_t readdir(file_handle_t dir, size_t idx);
+	virtual file_handle_t opendir(const char* path, ino_t* id, ino_t* nid);
+	virtual file_handle_t readdir(file_handle_t dir, size_t idx, struct vfs_file* dest);
 	virtual bool removeDirectory(file_handle_t file);
 	virtual file_handle_t createDirectory(const char* path, VFS_OPEN_MODES mode);
 
