@@ -1,7 +1,8 @@
 #include "AnsiTerminal.h"
 #include <sstream>
-#include <HIDDevice.h>
 
+#include <termios.h>
+#include <sys/ioctl.h>
 #include <signal.h>
 
 bool AnsiTerminal::initialize()
@@ -17,6 +18,10 @@ bool AnsiTerminal::initialize()
 	}
 	
 	memset(modifiers, 0, sizeof(modifiers));
+	
+	c_iflag = BRKINT;
+	c_lflag = ECHO | ECHOE | ISIG | ICANON;
+	
 	return true;
 }
 
@@ -34,7 +39,40 @@ bool AnsiTerminal::handle(message_t& msg)
 		return true;
 	}
 	
-	IO::HIDEvent* event = (IO::HIDEvent*) &msg.message;	
+	switch(msg.signal)
+	{
+		case IO::HID_EVENT:
+			return handleHIDEvent((IO::HIDEvent*) &msg.message);
+		break;
+		
+		case VFS_SIGNAL_CONFIGURE:
+		{
+			struct vfs_config_request* rq = (struct vfs_config_request*) &msg.message;
+			int value = atoi(rq->value);
+			
+			msg.signal = SIGNAL_FAIL;
+			if(!strcmp(rq->key, "termios.c_iflag"))
+			{
+				c_iflag = value;
+				msg.signal = SIGNAL_OK;
+			}
+			else if(!strcmp(rq->key, "termios.c_lflag"))
+			{
+				c_lflag = value;
+				msg.signal = SIGNAL_OK;
+			}
+			
+			send_message(&msg, msg.sender);
+		}
+		break;
+	}
+	
+	return false;
+}
+
+
+bool AnsiTerminal::handleHIDEvent(IO::HIDEvent* event)
+{
 	if(event->type == IO::HID_KEY_DOWN)
 	{
 		switch(event->data)
@@ -81,12 +119,12 @@ bool AnsiTerminal::handle(message_t& msg)
 				}
 				
 				int character = m_keymap[event->data];
-				if(character == '\b' && getBufferSize() > 0)
+				if(character == '\b' && getBufferSize() > 0 && c_lflag & ECHOE)
 					m_framebuffer.putch(character);
-				else if(character != '\b')
+				else if(character != '\b' && c_lflag & ECHO)
 					m_framebuffer.putch(character);
-
-				putch(character);
+				
+				putch(character, c_lflag & ICANON);
 			}
 		}
 		return true;

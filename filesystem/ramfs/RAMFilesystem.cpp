@@ -106,12 +106,12 @@ file_handle_t RAMFilesystem::opendir(const char* path, ino_t* id, ino_t* nid)
 		return 0;
 	
 	auto dir = static_cast<Directory*>(iter->second);
+	*id = dir->id;
+	
 	if(dir->children.size() == 0)
 		return -1;
 	
 	*nid = dir->children.begin()->second->id;
-	*id = dir->id;
-	
 	return *nid;
 }
 
@@ -185,13 +185,19 @@ bool RAMFilesystem::fstat(file_handle_t handle, struct stat* st)
 	if(node == handleFiles.end())
 		return false;
 
-	File* file = (File*) node->second;
+	if(node->second->type == VFS_REGULAR)
+	{
+		File* file = (File*) node->second;
+		
+		// TODO: Fill in the rest!
+		st->st_size = file->size;
+	}
 	
-	// TODO: Fill in the rest!
-	st->st_size = file->size;
-	st->st_uid = file->uid;
-	st->st_gid = file->gid;
+	Node* n = node->second;
+	st->st_uid = n->uid;
+	st->st_gid = n->gid;
 	st->st_ino = handle;
+	st->st_mode = n->type;
 
 	return true;
 }

@@ -2,6 +2,8 @@
 #define ANSITERMINAL_H
 
 #include <CharDevice.h>
+#include <HIDDevice.h>
+
 #include <map>
 #include <vector>
 #include "Framebuffer.h"
@@ -13,6 +15,15 @@ class AnsiTerminal : public IO::CharDevice
 	Framebuffer m_framebuffer;
 	
 	bool modifiers[3];
+	
+	bool handleHIDEvent(IO::HIDEvent* event);
+	bool handleIoctl(pid_t who);
+	
+	unsigned int c_iflag;
+	unsigned int c_oflag;
+	unsigned int c_cflag;
+	unsigned int c_lflag;
+	
 public:
 	AnsiTerminal(unsigned int id, std::map<int, int>& kmap) : m_id(id), m_keymap(kmap) { initialize(); }
 	bool initialize();
